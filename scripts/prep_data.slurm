@@ -4,7 +4,7 @@
 #SBATCH --time=20:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=24           # Boost I/O pour Lustre
+#SBATCH --cpus-per-task=24
 #SBATCH --hint=nomultithread
 #SBATCH --output=../dump/prep_data.out
 #SBATCH --error=../dump/prep_data.err
@@ -18,22 +18,20 @@ date
 cd $SCRATCH/IG3D_CMRxRecon
 
 # 1. Fusion des fragments vers le ZIP final
-# C'est ICI que la copie se crée naturellement
 echo "[1/5] Fusion des 92 fragments vers ChallengeData_AfterCompetition.zip..."
 cat ChallengeData_AfterCompetition.zip-part-* > ChallengeData_AfterCompetition.zip
 
 # 2. Vérification MD5 
-# On vérifie le ZIP AVANT de toucher aux fragments originaux
 echo "[2/5] Vérification MD5 du ZIP final..."
 md5sum ChallengeData_AfterCompetition.zip
-# Rappel : e45e42e4aeb6ef1870fedcf1454ec262
+# Rappel post : e45e42e4aeb6ef1870fedcf1454ec262 et normal: 31adb082971e2aa8149da9df045b43f5
 
 # 3. Décompression
 echo "[3/5] Décompression vers extracted_data/..."
 mkdir -p extracted_data
 unzip -q ChallengeData_AfterCompetition.zip -d extracted_data/
 
-# 4. Nettoyage des fichiers corrompus (CMRxRecon Official)
+# 4. Nettoyage des fichiers corrompus
 echo "[4/5] Suppression des données anormales..."
 BASE_GT="extracted_data/CMRxRecon2024_Val_TestDataset/GroundTruth"
 rm -f "$BASE_GT/Cine/TrainingSet/FullSample/P100/cinesax.mat" \
@@ -47,7 +45,6 @@ rm -f "$BASE_GT/Cine/TrainingSet/FullSample/P100/cinesax.mat" \
 
 # 5. Nettoyage final (Une fois que tout est OK)
 echo "[5/5] Ménage : Suppression du ZIP et des fragments..."
-# On ne supprime que si tout ce qui précède a réussi (grâce au set -e)
 rm ChallengeData_AfterCompetition.zip-part-*
 rm ChallengeData_AfterCompetition.zip
 

@@ -1,0 +1,3 @@
+[submodule "DiffCMR"]
+	path = DiffCMR
+	url = https://github.com/ton-username/DiffCMR.git

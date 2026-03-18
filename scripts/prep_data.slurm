@@ -18,18 +18,18 @@ date
 cd $SCRATCH/IG3D_CMRxRecon
 
 # 1. Fusion des fragments vers le ZIP final
-echo "[1/5] Fusion des 92 fragments vers ChallengeData_AfterCompetition.zip..."
-cat ChallengeData_AfterCompetition.zip-part-* > ChallengeData_AfterCompetition.zip
+echo "[1/5] Fusion des 92 fragments vers ChallengeData.zip..."
+cat ChallengeData.zip-part-* > ChallengeData.zip
 
 # 2. Vérification MD5 
 echo "[2/5] Vérification MD5 du ZIP final..."
-md5sum ChallengeData_AfterCompetition.zip
+md5sum ChallengeData.zip
 # Rappel post : e45e42e4aeb6ef1870fedcf1454ec262 et normal: 31adb082971e2aa8149da9df045b43f5
 
 # 3. Décompression
 echo "[3/5] Décompression vers extracted_data/..."
 mkdir -p extracted_data
-unzip -q ChallengeData_AfterCompetition.zip -d extracted_data/
+unzip -q ChallengeData.zip -d extracted_data/
 
 # 4. Nettoyage des fichiers corrompus
 echo "[4/5] Suppression des données anormales..."
@@ -45,8 +45,8 @@ rm -f "$BASE_GT/Cine/TrainingSet/FullSample/P100/cinesax.mat" \
 
 # 5. Nettoyage final (Une fois que tout est OK)
 echo "[5/5] Ménage : Suppression du ZIP et des fragments..."
-rm ChallengeData_AfterCompetition.zip-part-*
-rm ChallengeData_AfterCompetition.zip
+rm ChallengeData.zip-part-*
+rm ChallengeData.zip
 
 echo "=== Traitement terminé avec succès ! ==="
 date

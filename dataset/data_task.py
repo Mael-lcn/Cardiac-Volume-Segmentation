@@ -3,6 +3,7 @@ import time
 import argparse
 import multiprocessing
 import traceback
+import gc
 import numpy as np
 from tqdm import tqdm
 from loadFun import loadmat, multicoilkdata2img 
@@ -17,28 +18,23 @@ def paddingZero_np(np_data, target_shape=(512, 512)):
     shape = list(np_data.shape)
     H, W = shape[-2], shape[-1]
 
-    # Retourne immédiatement si la taille est déjà parfaite
     if H == target_shape[0] and W == target_shape[1]:
         return np_data
 
-    # Création du tenseur de destination (toujours 512x512)
     shape[-2] = target_shape[0]
     shape[-1] = target_shape[1]
     padded_data = np.zeros(shape, dtype=np_data.dtype)
 
-    # Calcul des indices de lecture (Image source)
     src_h_start = max((H - target_shape[0]) // 2, 0)
     src_w_start = max((W - target_shape[1]) // 2, 0)
     src_h_end = src_h_start + min(H, target_shape[0])
     src_w_end = src_w_start + min(W, target_shape[1])
 
-    # Calcul des indices d'écriture (Image de destination)
     dst_h_start = max((target_shape[0] - H) // 2, 0)
     dst_w_start = max((target_shape[1] - W) // 2, 0)
     dst_h_end = dst_h_start + min(H, target_shape[0])
     dst_w_end = dst_w_start + min(W, target_shape[1])
 
-    # Transfert de la zone d'intérêt (Crop ou Pad automatique)
     padded_data[..., dst_h_start:dst_h_end, dst_w_start:dst_w_end] = \
         np_data[..., src_h_start:src_h_end, src_w_start:src_w_end]
 
@@ -47,8 +43,7 @@ def paddingZero_np(np_data, target_shape=(512, 512)):
 
 def process_single_patient(args):
     """
-    Pipeline de prétraitement pour un patient unique.
-    Applique le masque, reconstruit les images et sauvegarde par blocs.
+    Pipeline de prétraitement pour un patient unique avec gestion stricte de la RAM.
     """
     patient_dir, item, save_dir, coilInfo = args
     result = {
@@ -75,49 +70,74 @@ def process_single_patient(args):
             if not (os.path.exists(full_path) and os.path.exists(mask_path)):
                 return 0
 
+            # 1. Chargement des données brutes
             data_full = loadmat(full_path)["kspace_full"]
             masks = loadmat(mask_path)
-            
+
             mask_key = next((k for k in masks.keys() if not k.startswith('__')), None)
             if mask_key is None:
                 raise KeyError(f"Matrice de masque introuvable dans {mask_path}")
             mask_04 = masks[mask_key]
+            del masks # Purge immédiate
 
-            # Recomposition des complexes HDF5 / MATLAB v7.3
+            # 2. Conversion Complexe Optmisée
             if data_full.dtype.names is not None and 'real' in data_full.dtype.names:
-                data_full = data_full['real'] + 1j * data_full['imag']
+                data_full_complex = np.empty(data_full.shape, dtype=np.complex64)
+                data_full_complex.real = data_full['real']
+                data_full_complex.imag = data_full['imag']
+                del data_full
+            else:
+                data_full_complex = data_full.astype(np.complex64)
 
             if mask_04.dtype.names is not None and 'real' in mask_04.dtype.names:
-                mask_04 = mask_04['real'] + 1j * mask_04['imag']
+                mask_04_complex = np.empty(mask_04.shape, dtype=np.complex64)
+                mask_04_complex.real = mask_04['real']
+                mask_04_complex.imag = mask_04['imag']
+                del mask_04
+            else:
+                mask_04_complex = mask_04.astype(np.complex64)
 
-            # Sous-échantillonnage
-            data_04 = data_full * mask_04
+            # 3. Sous-échantillonnage
+            data_04_complex = data_full_complex * mask_04_complex
+            del mask_04_complex
+            gc.collect()
 
-            # Padding optimisé
-            data_full_padded = paddingZero_np(data_full, (512, 512))
-            data_04_padded = paddingZero_np(data_04, (512, 512))
+            # 4. Padding/Cropping
+            data_full_padded = paddingZero_np(data_full_complex, (512, 512))
+            del data_full_complex
 
-            # Reconstruction IFFT
+            data_04_padded = paddingZero_np(data_04_complex, (512, 512))
+            del data_04_complex
+            gc.collect()
+
+            # 5. Reconstruction IFFT (Retourne du float32)
             imgs_full = multicoilkdata2img(data_full_padded)
+            del data_full_padded
+            
             imgs_04 = multicoilkdata2img(data_04_padded)
+            del data_04_padded
+            gc.collect()
 
-            # Normalisation vectorisée (Division par le max de la coupe)
+            # 6. Normalisation in-place
             max_f = np.amax(imgs_full, axis=(2, 3), keepdims=True)
             imgs_full = np.divide(imgs_full, max_f, out=np.zeros_like(imgs_full), where=max_f!=0)
 
             max_4 = np.amax(imgs_04, axis=(2, 3), keepdims=True)
             imgs_04 = np.divide(imgs_04, max_4, out=np.zeros_like(imgs_04), where=max_4!=0)
 
-            # Optimisation I/O Lustre : Fusion des dimensions (Temps * Coupes, Hauteur, Largeur)
-            # Évite de créer des milliers de petits fichiers
+            # 7. Aplatissement et Sauvegarde
             imgs_full_flat = imgs_full.reshape(-1, 512, 512)
             imgs_04_flat = imgs_04.reshape(-1, 512, 512)
 
             np.save(os.path.join(save_full_dir, f"{item}_{coilInfo}_{axis_name}_all.npy"), imgs_full_flat)
             np.save(os.path.join(save_04_dir, f"{item}_{coilInfo}_{axis_name}_all.npy"), imgs_04_flat)
 
-            # Retourne le nombre d'images 2D contenues dans les volumes sauvegardés
-            return imgs_full_flat.shape[0] * 2
+            # Purge finale de l'axe
+            del imgs_full, imgs_04, imgs_full_flat, imgs_04_flat
+            gc.collect()
+
+            # Retourne une estimation du nombre d'images 2D traitées
+            return max_f.shape[0] * max_f.shape[1] * 2
 
         saved_lax = process_axis(lax_full_path, lax_mask_path, "lax")
         saved_sax = process_axis(sax_full_path, sax_mask_path, "sax")
@@ -128,7 +148,7 @@ def process_single_patient(args):
             result["status"] = "WARNING"
             result["msg"] = f"[ATTENTION] Patient {item} : Fichiers originaux ou masques introuvables."
         else:
-            result["msg"] = f"[SUCCES] Patient {item} traité ({result['files_saved']} coupes générées)."
+            result["msg"] = f"[SUCCES] Patient {item} traité."
             
         return result
 
@@ -141,7 +161,7 @@ def process_single_patient(args):
 
 def generate_training_pairs(base_path, acc_factor="AccFactor04"):
     """
-    Génère le fichier de correspondance (Mapping) pour l'entraînement PyTorch.
+    Génère le fichier de correspondance pour l'entraînement PyTorch.
     """
     imgs_dir = os.path.join(base_path, acc_factor)
     full_sample_dir = os.path.join(base_path, 'FullSample')
@@ -168,12 +188,13 @@ def generate_training_pairs(base_path, acc_factor="AccFactor04"):
         return 0, f"[ERREUR] Echec lors de la création du fichier de paires: {str(e)}"
 
 
-
 def main():
     parser = argparse.ArgumentParser(description="Prétraitement HPC CMRxRecon 2024")
-    parser.add_argument('-i', "--input", type=str, default="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data_pre/home2/Raw_data/MICCAIChallenge2024/ChallengeData", help="Dossier racine contenant les données brutes")
-    parser.add_argument('-o', "--output", type=str, default="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data", help="Dossier de destination pour les fichiers .npy")
-    parser.add_argument('-w', "--workers", type=int, default=max(1, multiprocessing.cpu_count()-1), help="Nombre de processus à utiliser (Défaut : coeurs disponibles - 1)")
+    parser.add_argument('-i', "--input", type=str, default="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data_pre/home2/Raw_data/MICCAIChallenge2024/ChallengeData")
+    parser.add_argument('-o', "--output", type=str, default="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data")
+    
+    # Bridage strict des workers pour garantir la stabilité mémoire
+    parser.add_argument('-w', "--workers", type=int, default=8, help="Nombre de processus concurrents (recommandé: 4 à 8)")
 
     args = parser.parse_args()
 
@@ -187,9 +208,8 @@ def main():
         print(f"[ERREUR CRITIQUE] Le dossier FullSample est introuvable à l'emplacement : {dir_path}")
         return
 
-    # Utilisation de sorted() pour garantir un ordre d'exécution déterministe.
-    # La limite [:4] est laissée pour le débogage initial (à retirer pour le dataset complet).
-    for item in sorted(os.listdir(dir_path))[:4]:
+    # Chargement dynamique de la totalité des patients
+    for item in sorted(os.listdir(dir_path)[:4]):
         patient_dir = os.path.join(dir_path, item)
         if os.path.isdir(patient_dir):
             tasks.append((patient_dir, item, args.output, coilInfo))
@@ -199,7 +219,7 @@ def main():
         print("[INFO] Aucun patient détecté. Fin du programme.")
         return
 
-    print(f"Demarrage du pool multiprocessing avec {args.workers} processus.")
+    print(f"Démarrage du pool multiprocessing avec {args.workers} processus maximum.")
     print(f"{total_patients} patients soumis au traitement.")
 
     start_time = time.time()
@@ -231,23 +251,23 @@ def main():
     minutes, seconds = divmod(rem, 60)
 
     summary = f"""
-        =========================================================
-                        RAPPORT D'EXECUTION FINALE              
-        =========================================================
-        Temps total écoulé      : {int(hours)}h {int(minutes)}m {int(seconds)}s
-        Temps moyen / patient   : {avg_time_per_patient:.2f} secondes
-        Threads (Workers)       : {args.workers}
-        ---------------------------------------------------------
-        Patients traités        : {total_patients}
-        Succès                  : {stats["success"]}
-        Avertissements          : {stats["warnings"]}
-        Erreurs                 : {stats["errors"]}
-        ---------------------------------------------------------
-        Coupes 2D générées      : {stats["total_files_saved"]}
-        Fichiers consolidés     : {pairs_count * 2}
-        Paires d'entraînement   : {pairs_count}
-        =========================================================
-        """
+    =========================================================
+                    RAPPORT D'EXECUTION FINALE              
+    =========================================================
+    Temps total écoulé      : {int(hours)}h {int(minutes)}m {int(seconds)}s
+    Temps moyen / patient   : {avg_time_per_patient:.2f} secondes
+    Threads (Workers)       : {args.workers}
+    ---------------------------------------------------------
+    Patients traités        : {total_patients}
+    Succès                  : {stats["success"]}
+    Avertissements          : {stats["warnings"]}
+    Erreurs                 : {stats["errors"]}
+    ---------------------------------------------------------
+    Coupes 2D générées      : {stats["total_files_saved"]}
+    Fichiers consolidés     : {pairs_count * 2}
+    Paires d'entraînement   : {pairs_count}
+    =========================================================
+    """
     print(summary)
 
 

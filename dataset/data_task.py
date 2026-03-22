@@ -192,9 +192,8 @@ def main():
     parser = argparse.ArgumentParser(description="Prétraitement HPC CMRxRecon 2024")
     parser.add_argument('-i', "--input", type=str, default="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data_pre/home2/Raw_data/MICCAIChallenge2024/ChallengeData")
     parser.add_argument('-o', "--output", type=str, default="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data")
-    
-    # Bridage strict des workers pour garantir la stabilité mémoire
-    parser.add_argument('-w', "--workers", type=int, default=8, help="Nombre de processus concurrents (recommandé: 4 à 8)")
+
+    parser.add_argument('-w', "--workers", type=int, default=max(1, multiprocessing.cpu_count()-1), help="Nombre de processus concurrents (recommandé: 4 à 8)")
 
     args = parser.parse_args()
 

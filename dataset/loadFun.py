@@ -3,6 +3,8 @@ import h5py
 import scipy.fft as sp_fft
 from typing import Optional
 
+
+
 def load_h5_slice(file_path: str, slice_idx: int, dataset_name: Optional[str] = None) -> np.ndarray:
     """
     Extrait une unique tranche (slice) d'un fichier HDF5 (MATLAB v7.3) via lecture paresseuse (Lazy Loading).
@@ -26,14 +28,21 @@ def load_h5_slice(file_path: str, slice_idx: int, dataset_name: Optional[str] = 
     try:
         with h5py.File(file_path, 'r') as f:
             if dataset_name is None:
-                # Auto-détection de la première vraie matrice (ignore les métadonnées '__')
+                # Auto-détection de la première vraie matrice
                 dataset_name = next((k for k in f.keys() if not k.startswith('__')), None)
 
             if dataset_name not in f:
                 raise KeyError(f"La clé '{dataset_name}' est absente du fichier {file_path}.")
 
-            # L'ordre HDF5 CMRxRecon est typiquement : [frames, slices, coils, y, x]
-            return f[dataset_name][:, slice_idx, :, :, :]
+            dataset = f[dataset_name]
+            ndim = len(dataset.shape)
+
+            # Si c'est le K-space (5D : frames, slices, coils, y, x)
+            if ndim == 5:
+                return dataset[:, slice_idx, :, :, :]
+            # Si c'est le masque (généralement 2D [y, x] ou 3D), on le charge en entier
+            else:
+                return dataset[:]
 
     except Exception as e:
         raise RuntimeError(f"Erreur lors de la lecture paresseuse de {file_path} : {str(e)}")

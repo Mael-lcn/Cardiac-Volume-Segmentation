@@ -201,7 +201,7 @@ def main():
     parser = argparse.ArgumentParser(description="Prétraitement HPC Lazy-Loading et Chunking")
     parser.add_argument('-i', "--input", type=str, default="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data_pre/home2/Raw_data/MICCAIChallenge2024/ChallengeData")
     parser.add_argument('-o', "--output", type=str, default="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data")
-    parser.add_argument('-w', "--workers", type=int, default=max(1, multiprocessing.cpu_count() - 1))
+    parser.add_argument('-w', "--workers", type=int, default=max(1, multiprocessing.cpu_count()-1))
 
     args = parser.parse_args()
     coilInfo = 'MultiCoil'
@@ -255,15 +255,15 @@ def main():
     minutes, seconds = divmod(rem, 60)
 
     print(f"""
-=========================================================
-                RAPPORT D'EXECUTION FINALE              
-=========================================================
-Temps de calcul total   : {int(hours)}h {int(minutes)}m {int(seconds)}s
-Tranches calculées      : {success_count} / {total_tasks}
-Paires d'entraînement   : {pairs_count} (Total dataset)
-Erreurs fatales         : {errors}
-=========================================================
-    """)
+    =========================================================
+                    RAPPORT D'EXECUTION FINALE              
+    =========================================================
+    Temps de calcul total   : {int(hours)}h {int(minutes)}m {int(seconds)}s
+    Tranches calculées      : {success_count} / {total_tasks}
+    Paires d'entraînement   : {pairs_count} (Total dataset)
+    Erreurs fatales         : {errors}
+    =========================================================
+        """)
 
 if __name__ == "__main__":
     main()

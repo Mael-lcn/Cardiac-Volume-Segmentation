@@ -62,20 +62,19 @@ def multicoilkdata2img_slice(kdata_slice: np.ndarray) -> np.ndarray:
         np.ndarray: Tenseur d'image réelle normalisée en simple précision (float32), 
                     de forme (Frames, H, W).
     """
-    # 1. IFFT 2D sur les axes spatiaux (Hauteur, Largeur)
-    # Désactivation du multithreading interne (workers=1) vitale en HPC pour 
-    # éviter les conflits (oversubscription) avec la parallélisation de niveau supérieur.
-    img_complex = sp_fft.ifftshift(
+    # 1. RSS dans le k-space (on combine les antennes d'abord)
+    # Note: On travaille sur la magnitude complexe
+    kdata_combined = np.sqrt(np.sum(np.abs(kdata_slice)**2, axis=1)) # (Frames, H, W)
+    
+    # 2. IFFT sur le k-space combiné
+    img_combined = sp_fft.ifftshift(
         sp_fft.ifft2(
-            sp_fft.ifftshift(kdata_slice, axes=(-2, -1)), 
+            sp_fft.ifftshift(kdata_combined, axes=(-2, -1)), 
             axes=(-2, -1),
             workers=1
         ),
         axes=(-2, -1)
     )
     
-    # 2. Combinaison RSS sur l'axe des bobines (Coils, index -3)
-    # Cast immédiat en float32 pour diviser l'empreinte RAM finale par 2
-    img_rss = np.sqrt(np.sum(np.abs(img_complex)**2, axis=-3)).astype(np.float32)
-    
-    return img_rss
+    # On retourne la magnitude (l'image réelle)
+    return np.abs(img_combined).astype(np.float32)

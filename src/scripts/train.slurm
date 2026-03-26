@@ -19,7 +19,7 @@ conda activate ig3d
 # Lancement distribué
 srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/train_task1_diff.py \
     --trainpairfile "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data/TrainingSet/pairs.txt" \
-    --logdir "/lustre/fswork/projects/rech/iql/uri76kx/ig3d/Cardiac-Volume-Segmentation/log/logs_run1" \
+    --logdir "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/logs_run1" \
     --use_fp16 True \
     --num_workers 2 \
     --batch_size 8

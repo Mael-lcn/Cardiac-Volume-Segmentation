@@ -5,7 +5,7 @@
 #SBATCH --time=24:00:00             
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:4                # Demande de l'intégralité des 8 V100
-#SBATCH --ntasks-per-node=8         # 8 tâches MPI (1 processus gère 1 GPU)
+#SBATCH --ntasks-per-node=4         # 8 tâches MPI (1 processus gère 1 GPU)
 #SBATCH --cpus-per-task=3
 #SBATCH --hint=nomultithread
 #SBATCH --account=iql@v100

@@ -1,3 +1,3 @@
 [submodule "DiffCMR"]
 	path = src/DiffCMR
-	url = https://github.com/ton-username/DiffCMR.git
+	url = git@github.com:Mael-lcn/DiffCMR.git

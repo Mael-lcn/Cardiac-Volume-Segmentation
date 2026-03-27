@@ -17,9 +17,10 @@ module load pytorch-gpu/py3/2.1.1
 conda activate ig3d
 
 # Lancement distribué
-srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/train_task1_diff.py \
+srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/train_task1_flow.py \
     --trainpairfile "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data/TrainingSet/pairs.txt" \
     --logdir "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/logs_run1" \
     --use_fp16 True \
     --num_workers 2 \
-    --batch_size 8
+    --batch_size 64 \
+    --microbatch 16

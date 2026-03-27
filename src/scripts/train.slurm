@@ -23,4 +23,5 @@ srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/train_task1_flow.
     --use_fp16 True \
     --num_workers 2 \
     --batch_size 64 \
-    --microbatch 16
+    --microbatch 16 \
+    --run_without_test False

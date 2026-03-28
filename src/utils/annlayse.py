@@ -5,7 +5,7 @@ import seaborn as sns
 
 
 # 1. Chargement et Nettoyage
-df = pd.read_csv('../../../output/log/diff/follow.csv')
+df = pd.read_csv('../../../output/log/flow/follow.csv')
 
 # 2. ML Stats Extraction
 def get_ml_stats(df):

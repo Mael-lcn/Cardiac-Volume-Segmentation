@@ -9,25 +9,24 @@
 #SBATCH --cpus-per-task=3
 #SBATCH --hint=nomultithread
 #SBATCH --account=iql@v100
-#SBATCH --output=../dump/train.out
-#SBATCH --error=../dump/train.err
 
 module purge
 module load pytorch-gpu/py3/2.1.1
 conda activate ig3d
 
-export OPENAI_LOGDIR="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/flow/logs_run1"
+task="diff" # ou "flow"
+export OPENAI_LOGDIR="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/$task/logs_run1"
+mkdir -p $OPENAI_LOGDIR
 
-# Lancement distribué
-srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/train_task1_flow.py \
+srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/train_task1_$task.py \
+    --model_type "diffusion" \
     --trainpairfile "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data/TrainingSet/pairs.txt" \
-    --logdir "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/flow/logs_run1" \
+    --valpairfile "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data/ValidationSet/pairs.txt" \
+    --lr 1e-4 \
+    --batch_size 8 \
+    --microbatch -1 \
+    --diffusion_steps 1000 \
+    --log_interval 1000 \
+    --save_interval 10000 \
     --use_fp16 True \
-    --num_workers 2 \
-    --batch_size 64 \
-    --microbatch 16 \
-    --run_without_test False \
-    --log_interval 50 \
-    --save_interval 2000 \
-    --start_print_iter 0 \
-    --resume_checkpoint "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/flow/logs_run1"
+    --run_without_test False

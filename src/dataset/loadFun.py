@@ -62,19 +62,17 @@ def multicoilkdata2img_slice(kdata_slice: np.ndarray) -> np.ndarray:
         np.ndarray: Tenseur d'image réelle normalisée en simple précision (float32), 
                     de forme (Frames, H, W).
     """
-    # 1. RSS dans le k-space (on combine les antennes d'abord)
-    # Note: On travaille sur la magnitude complexe
-    kdata_combined = np.sqrt(np.sum(np.abs(kdata_slice)**2, axis=1)) # (Frames, H, W)
-    
-    # 2. IFFT sur le k-space combiné
-    img_combined = sp_fft.ifftshift(
+    img_coils_complex = sp_fft.fftshift(
         sp_fft.ifft2(
-            sp_fft.ifftshift(kdata_combined, axes=(-2, -1)), 
+            sp_fft.ifftshift(kdata_slice, axes=(-2, -1)), 
             axes=(-2, -1),
             workers=1
         ),
         axes=(-2, -1)
     )
-    
-    # On retourne la magnitude (l'image réelle)
-    return np.abs(img_combined).astype(np.float32)
+
+    # 2. Combinaison RSS (Root Sum of Squares) dans le domaine de l'IMAGE
+    # On prend la magnitude (abs), on l'élève au carré, on somme sur les Coils (axis=1), puis racine.
+    img_combined = np.sqrt(np.sum(np.abs(img_coils_complex)**2, axis=1))
+
+    return img_combined.astype(np.float32)

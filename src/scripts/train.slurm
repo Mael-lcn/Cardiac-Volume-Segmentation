@@ -17,19 +17,18 @@ module purge
 module load pytorch-gpu/py3/2.1.1
 conda activate ig3d
 
-task="diff" # ou "flow"                                                         # ex logs_run1 
-export OPENAI_LOGDIR="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/$task/eval"
+task="flow" # "diff" ou "flow"
+export OPENAI_LOGDIR="/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/$task/train"
 mkdir -p $OPENAI_LOGDIR
 
 srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/train_task1_$task.py \
-    --model_type "diffusion" \
     --trainpairfile "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data/TrainingSet/pairs.txt" \
     --valpairfile "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data/ValidationSet/pairs.txt" \
-    --logdir "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/$task/eval" \
+    --logdir "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/$task/train" \
     --lr 1e-4 \
     --batch_size 8 \
     --microbatch -1 \
-    --diffusion_steps 1000 \
+    --diffusion_steps 40 \
     --log_interval 1000 \
     --save_interval 10000 \
     --use_fp16 True \

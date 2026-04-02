@@ -24,7 +24,8 @@ srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/inference.py \
     --model_path "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/logs_run1/model248000.pt" \
     --val_pair_file "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/data/ValidationSet/pairs.txt" \
     --result_dir "/lustre/fsn1/projects/rech/iql/uri76kx/ig3d_CMRxRecon/log/diff/eval" \
+    --model_type "diffusion"
     --diffusion_steps 100 \
-    --batch_size 8 \
+    --batch_size 16 \
     --vote_num 4 \
     --num_workers 2

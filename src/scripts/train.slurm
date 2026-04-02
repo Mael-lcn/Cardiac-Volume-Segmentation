@@ -29,6 +29,7 @@ srun python $WORK/ig3d/Cardiac-Volume-Segmentation/src/DiffCMR/train_task1_$task
     --batch_size 8 \
     --microbatch -1 \
     --diffusion_steps 40 \
+    --timestep_respacing 100 \
     --log_interval 1000 \
     --save_interval 10000 \
     --use_fp16 True \
